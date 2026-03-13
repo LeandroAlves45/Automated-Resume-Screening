@@ -120,4 +120,4 @@ TEXT_CONFIG = dict = {
 # The list of file extensions that the resume parser will attempt to process.
 # Files with any other extensions will be skipped and logged as unsupported.
 # --------------------------------------------------------------------
-SUPPORTED_FILE_EXTENSIONS = list[str] = [".pdf", ".docx", ".txt"]
+SUPPORTED_EXTENSIONS = list[str] = [".pdf", ".docx", ".txt"]
