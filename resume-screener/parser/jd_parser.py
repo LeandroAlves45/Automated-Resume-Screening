@@ -89,7 +89,7 @@ class JobDescriptionParser:
             nlp: A loaded spaCy Language object (e.g. spacy.load('en_core_web_sm')).
                  Passed in from main.py to avoid loading the model multiple times.
         """
-        self.nlp = nlp
+        self._nlp = nlp
         logger.debug("JobDescriptionParser initialised")
 
     # -------------------------------------------------------------------------------
@@ -120,7 +120,7 @@ class JobDescriptionParser:
         # which is misleading — better to log a warning and return defaults.
         if not jd_text or not jd_text.strip():
             logger.warning("Job Description text is empty. All criteria will use neutral values.")
-            return self.empty_result(jd_text)
+            return self._empty_result(jd_text)
         
         # Run the spaCy NLP pipeline on the full JD text.
         # This single call performs tokenisation, POS tagging, dependency
@@ -185,8 +185,12 @@ class JobDescriptionParser:
             # Check for the skill as a substring. We wrap it with word boundaries
             # implicitly by checking the full token — but for multi-word skills
             # like "github actions" this still works correctly as a substring match.
-            if skill in text_lower:
-                found_skills.append(skill)
+            if len(skill) <2:
+                if re.search(r"\b" + re.escape(skill) + r"\b", text_lower):
+                    found_skills.append(skill)
+            else:
+                if skill in text_lower:
+                    found_skills.append(skill)
 
         logger.debug(f"Skills extracted: {found_skills}")
         return found_skills

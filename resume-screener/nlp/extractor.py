@@ -46,7 +46,7 @@ class ResumeFeatureExtractor:
         Args:
             nlp: A loaded spaCy language object, injected from main.py.
         """
-        self.nlp = nlp
+        self._nlp = nlp
         logger.debug("ResumeFeatureExtractor initialised.")
 
     # ----------------------------------------------------------------------------
@@ -211,7 +211,7 @@ class ResumeFeatureExtractor:
 
         return max(found_values) if found_values else 0
     
-    def _stategy_date_ranges(self, text: str) -> int:
+    def _strategy_date_ranges(self, text: str) -> int:
         """
         Strategy 2: Calculate total experience from employment date ranges.
  
@@ -265,7 +265,7 @@ class ResumeFeatureExtractor:
             if (start_year >= 1970 and end_year <= current_year and start_year < end_year):
                 duration = end_year - start_year
                 total_years += duration
-                logger.debug(f"Data range: {start_year} - {end_year} => {duration} years")
+                logger.debug(f"Date range: {start_year} - {end_year} => {duration} years")
 
         return total_years
     
@@ -322,7 +322,7 @@ class ResumeFeatureExtractor:
                 continue
             if token.like_num:
                 continue
-            if len(token) < 2:
+            if len(token.text) < 2:
                 continue
 
             lemma = token.lemma_.lower().strip()
@@ -372,7 +372,7 @@ class ResumeFeatureExtractor:
         return entities
     
     # ----------------------------------------------------------------------------
-    # HELPERS METHODS
+    # HELPER METHODS
     # ----------------------------------------------------------------------------
 
     def _empty_result(self) -> dict:

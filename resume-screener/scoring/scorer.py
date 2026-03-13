@@ -80,7 +80,7 @@ class ResumeScorer:
 
         education_score = self._score_education(candidate_level=resume_features.get("education_level", 0.0), required_level=jd_criteria.get("education_level", 0.0))
 
-        keyword_score = self._score_keywords(candidate_keywords=resume_features.get("keywords", []), jd_keywords=jd_criteria.get("keywords", []))
+        keyword_score = self._score_keywords(resume_keywords=resume_features.get("keywords", []), jd_keywords=jd_criteria.get("keywords", []))
 
         # --- Apply weights and calculate final score ---
         # Each score is multiplied by its weight from config.py.

@@ -44,7 +44,7 @@ def pipeline(nlp_model, tmp_path):
 
     return {
         "resume_parser": ResumeParser(),
-        "jd_parser": JobDescriptionParser(),
+        "jd_parser": JobDescriptionParser(nlp_model),
         "preprocessor": TextPreprocessor(nlp_model),
         "extractor": ResumeFeatureExtractor(nlp_model),
         "scorer": ResumeScorer(),
@@ -149,7 +149,7 @@ class TestCSVOutput:
         p = pipeline
         f = populated_folder
 
-        jd_criteria = load_job_description(str("jd_file"), p["jd_parser"])
+        jd_criteria = load_job_description(str(f["jd_file"]), p["jd_parser"])
         scored_results, _ =process_resumes(
             str(f["cv_folder"]), jd_criteria,
             p["resume_parser"], p["preprocessor"], p["extractor"], p["scorer"]
@@ -160,12 +160,12 @@ class TestCSVOutput:
         csv_path = p["reporter"].save_csv(ranked)
 
         # Count rows in the CSV file
-        with open(csv_path, encodinh="utf-8-sig") as f_csv:
+        with open(csv_path, encoding="utf-8-sig") as f_csv:
             reader = csv.reader(f_csv)
             rows = list(reader)
 
         # rows[0] is the header; rows[1:] are the candidartes
-        assert len(rowns) == len(ranked) + 1
+        assert len(rows) == len(ranked) + 1
 
 class TestJSONOutput:
 
@@ -266,7 +266,7 @@ class TestRobustness:
 
         # the too-short file must appear in failed_files (not silently dropped)
         assert len(failed_files) == 1
-        assert failed_files[0]["name"] == "too short"
+        assert failed_files[0]["name"] == "too_short"
 
 class TestSortOrder:
 
@@ -279,9 +279,9 @@ class TestSortOrder:
 
         ranked = sort_results(results)
 
-        assert ranked[0]["total_scores"] == 80.0
-        assert ranked[1]["total_scores"] == 60.0
-        assert ranked[2]["total_scores"] == 45.0
+        assert ranked[0]["total_score"] == 80.0
+        assert ranked[1]["total_score"] == 60.0
+        assert ranked[2]["total_score"] == 45.0
 
     def test_sort_alphabetically_on_score_tie(self):
         results = [

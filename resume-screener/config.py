@@ -19,7 +19,7 @@
 #  -keyword_density is the third most important (20%)
 #  -education is the least important (15%)
 
-SCORING_WEIGHTS = dict[str, float] = {
+SCORING_WEIGHTS: dict[str, float] = {
     "skills_match": 0.4,        # % of required JD skills present in the resume
     "experience_years": 0.25,   # Total years of relevant experience
     "keyword_density": 0.2,     # TF-IDF score of relevant keywords in the resume
@@ -42,7 +42,7 @@ SCORING_WEIGHTS = dict[str, float] = {
 # Keywords are lowercase so matching should always be done after .lower()
 # is applied to the extract text.
 # -------------------------------------------------------------------
-EDUCATION_LEVELS = dict[str, float] = {
+EDUCATION_LEVELS: dict[str, float] = {
     # High School equivalents
     "high school": 0.2,
     "secondary school": 0.2,
@@ -91,7 +91,7 @@ EDUCATION_LEVELS = dict[str, float] = {
 #   - "Strong Match": >=75 : Strongly aligned profile - advance to interview    
 #   - "Potencial Match": >= 50 : Partial relevance - review manually
 #   - "Weak Match": < 50 : Not aligned with this role - reject
-THRESHOLDS = dict[str, int] = {
+THRESHOLDS: dict[str, int] = {
     "strong_match": 75,
     "potential_match": 50,
     #anything below potential_match is a weak match
@@ -108,7 +108,7 @@ THRESHOLDS = dict[str, int] = {
 #
 #  spacy_model: The name of the spacy language model to load. Keeping this here means switching to a larger model.
 # -------------------------------------------------------------------
-TEXT_CONFIG = dict = {
+TEXT_CONFIG: dict = {
     "min_resume_length": 100,  # characters - below this, the CV is invalid
     "max_experience_years": 50,  # Maximum years of experience to consider valid
     "spacy_model": "en_core_web_sm"  # Spacy model to use for NLP tasks
@@ -120,4 +120,4 @@ TEXT_CONFIG = dict = {
 # The list of file extensions that the resume parser will attempt to process.
 # Files with any other extensions will be skipped and logged as unsupported.
 # --------------------------------------------------------------------
-SUPPORTED_EXTENSIONS = list[str] = [".pdf", ".docx", ".txt"]
+SUPPORTED_EXTENSIONS: list[str] = [".pdf", ".docx", ".txt"]

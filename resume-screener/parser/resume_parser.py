@@ -205,7 +205,7 @@ class ResumeParser:
         paragraphs = [paragraph.text for paragraph in doc.paragraphs]
         return "\n".join(paragraphs)
 
-    def _parse_text(self, path: str) -> str:
+    def _parse_txt(self, path: str) -> str:
         """
         Read a plain text CV file with encoding fallback.
 

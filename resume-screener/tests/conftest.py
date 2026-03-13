@@ -209,8 +209,8 @@ def strong_candidate_features():
     Feature dict for a strong candidate, as produced by ResumeFeatureExtractor.
     """
     return {
-        "skills":           ["python", "fastapi", "docker", "postgresql", "aws", "git"],
-        "min_experience":   8,
+        "matched_skills":   ["python", "fastapi", "docker", "postgresql", "aws", "git"],
+        "experience_years": 8,
         "education_level":  0.8,
         "keywords":         ["python","fastapi", "develop", "backend", "aws", "docker", "git"],
         "entities":         {"ORG": [], "GPE": [], "DATE": [], "PERSON": []},
@@ -223,8 +223,8 @@ def weak_candidate_features():
     """
 
     return {
-        "skills":           [],
-        "min_experience":   0,
+        "matched_skills":   [],
+        "experience_years": 0,
         "education_level":  0.2,
         "keywords":         ["design","figma", "photoshop"],
         "entities":         {"ORG": [], "GPE": [], "DATE": [], "PERSON": []},
