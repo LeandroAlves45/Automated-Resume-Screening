@@ -1,7 +1,38 @@
-spacy>=3.7.0
-pdfminer.six>=20221105
-python-docx>=1.1.0
-scikit-learn>=1.3.0
-pandas>=2.0.0
-numpy>=1.24.0
- 
+# ============================================================
+# Automated Resume Screener — v2.0 Full Requirements
+# Python 3.11+
+#
+# Install: pip install -r requirements.txt
+# Dev extras: pip install -r requirements-dev.txt
+# ============================================================
+
+# Web Framework
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+
+# Database and ORM
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+psycopg2-binary>=2.9.0  # PostgreSQL driver
+
+# Schema Validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Authentication
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+
+# File Validation
+python-magic>=0.4.27
+
+# NLP Pipeline
+spacy>=3.7.0  # Core NLP library (en_core_web_sm required: python -m spacy download en_core_web_sm)
+pdfminer.six>=20221105  # PDF parsing
+python-docx>=1.1.0  # DOCX parsing
+scikit-learn>=1.3.0  # Machine learning
+numpy>=1.24.0  # Numerical operations
+
+# Utilities
+python-dotenv>=1.0.0  # Environment variable management

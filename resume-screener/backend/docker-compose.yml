@@ -1,0 +1,49 @@
+services:
+  postgres: # Serviço de base de dados
+    image: postgres:15
+    container_name: ars_postgres
+    environment: # Variáveis de ambiente do PostgreSQL
+      POSTGRES_USER: ars_leandro
+      POSTGRES_PASSWORD: ars_leandropass
+      POSTGRES_DB: ars_dev
+    volumes: # Persistência dos dados do PostgreSQL
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Porta exposta do PostgreSQL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ars_leandro -d ars_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ars_network
+
+  api: # Serviço da API
+    build:
+      context: .. # Build a partir da raiz do projeto
+      dockerfile: ./backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ars_leandro:ars_leandropass@postgres:5432/ars_dev
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
+      APP_ENV: development # Ambiente de desenvolvimento
+      LOG_LEVEL: debug # Nível de log em desenvolvimento
+    ports:
+      - "8000:8000" # Porta da API
+    depends_on: # A API só arranca depois do PostgreSQL estar saudável
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ..:/app # Monta a raiz do projeto para preservar o pacote backend
+      - /app/__pycache__ # Evita sincronizar pycache
+    networks:
+      - ars_network
+    stdin_open: true # Mantém stdin aberto para depuração interativa
+    tty: true # Aloca um pseudo-TTY para melhor experiência no terminal
+
+volumes:
+  postgres_data: # Volume nomeado para dados do PostgreSQL
+    driver: local
+
+networks:
+  ars_network: # Rede interna dos serviços
+    driver: bridge
