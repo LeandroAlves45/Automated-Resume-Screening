@@ -17,15 +17,15 @@ alembic>=1.13.0
 psycopg2-binary>=2.9.0  # PostgreSQL driver
 
 # Schema Validation
-pydantic>=2.0.0
+pydantic[email]>=2.0.0  # Includes email-validator for EmailStr validation
 pydantic-settings>=2.0.0
 
 # Authentication
-passlib[bcrypt]>=1.7.4
+passlib[argon2]>=1.7.4
 python-jose[cryptography]>=3.3.0
 
 # File Validation
-python-magic>=0.4.27
+python-magic-bin>=0.4.14  # Windows-compatible version of python-magic
 
 # NLP Pipeline
 spacy>=3.7.0  # Core NLP library (en_core_web_sm required: python -m spacy download en_core_web_sm)

@@ -1,160 +1,292 @@
+"""Ponto de entrada FastAPI: ciclo de vida, CORS, handlers e registo de routers."""
+
 import logging
 from contextlib import asynccontextmanager
-import spacy
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+import spacy
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 
 from backend.api.config import get_settings
-from backend.api.db.database import check_db_connection, engine
-from backend.api.db.models import Base
-from backend.api.utils.errors import BaseAPIException
-
-# ========== Logging Setup =========
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-  level=logging.DEBUG,
-  format='%(asctime)s | %(levelname)s | %(name)s | %(message)s'
+from backend.api.db.database import check_db_connection, create_tables
+from backend.api.models.schemas import HealthResponse
+from backend.api.routes import processes, upload, auth
+from backend.api.utils.errors import (
+    BaseAPIException,
+    ConflictError,
+    NotFoundError,
+    ValidationError,
+    UnauthorizedError,
 )
+from backend.api.utils.logging import setup_logging
 
-# ========== Settings =========
+# ========== Logging ==========
+logger = logging.getLogger(__name__)
+
+# ========== Configuração ==========
 settings = get_settings()
 
-# ========== Startup/Shutdown Events =========
+
+# ========== Arranque e encerramento ==========
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-  """
-  Gerencia o ciclo de vida da aplicação FastAPI.
+async def lifespan(fastapi_app: FastAPI):
+    """
+    Ciclo de vida da aplicação FastAPI.
 
-  Startup:
-  - Cria tabelas no banco de dados
-  - Carrega modelo spacy 
+    Arranque:
+    - Cria tabelas na base de dados
+    - Carrega o modelo spaCy
 
-  Shutdown:
-  - Fecha conexões de banco de dados
-  """
-  logger.info("Starting up Automated Resume Screener...")
+    Encerramento:
+    - Regista encerramento (ligações geridas pelo motor SQLAlchemy)
+    """
+    logger.info("=" * 80)
+    logger.info("Starting application ARS - Automated Resume Screener...")
+    logger.info("=" * 80)
 
-  # Cria todas as tabelas do banco de dados
-  logger.info("Creating database tables...")
-  try:
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables created successfully.")
+    try:
+        logger.info("Creating database tables...")
+        create_tables()
+        logger.info("Database tables created successfully.")
 
-  except Exception as e:
-    logger.error(f"Error creating database tables: {e}")
-    raise
+        logger.info("Checking database connection...")
+        if not check_db_connection():
+            logger.error("Database connection failed during startup -> Shutdown")
+            raise RuntimeError("Database connection failed during startup")
+        logger.info("Database connection successful.")
 
-  # Carrega o modelo spacy uma única vez e armazena em app.state
-  logger.info(f"Loading spaCy model: {settings.spacy_model}...")
-  try:
-    nlp = spacy.load(settings.spacy_model)
-    app.state.nlp_model = nlp
-    logger.info("spaCy model loaded successfully.")
+        logger.info("Loading spaCy model: %s...", settings.spacy_model)
+        try:
+            nlp = spacy.load(settings.spacy_model)
+            fastapi_app.state.nlp_model = nlp
+            logger.info("spaCy model loaded successfully: %s.", settings.spacy_model)
+        except OSError as exc:
+            logger.error(
+                "spaCy model '%s' not found. Install with: python -m spacy download %s",
+                settings.spacy_model,
+                settings.spacy_model,
+            )
+            raise RuntimeError(f"Failed to load spaCy model: {exc!s}") from exc
 
-  except OSError as e:
-    logger.error(
-      f"spaCy model '{settings.spacy_model}' not found. "
-      f"Please install it using: python -m spacy download {settings.spacy_model}"
-    )
-    raise
+        logger.info("Startup completed -> Application ready.")
+        logger.info("=" * 80)
 
-  yield  # Aplicação roda aqui
+    except Exception as exc:
+        logger.error("Fatal error during startup: %s", exc)
+        raise
 
-  # Shutdown logic 
-  logger.info("Shutting down Automated Resume Screener...")
+    yield
 
-# ========== FastAPI App Initialization ==========
+    logger.info("=" * 80)
+    logger.info("Encerrando aplicação ARS")
+    logger.info("=" * 80)
+
+
+# ========== Aplicação FastAPI ==========
 app = FastAPI(
-  title="Automated Resume Screener",
-  description="REST API for CV screening and ranking",
-  version="2.0.0",
-  lifespan=lifespan
+    title="Automated Resume Screener",
+    description="REST API for CV screening and ranking",
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
-# ========== CORS Middleware ==========
-# Configura CORS para permitir requisições do frontend
-allowed_origins = settings.allowed_origins_list
-logger.info(f"Configuring CORS with allowed origins: {allowed_origins}")
+setup_logging(settings.log_level)
 
-app.add_middleware(
-  CORSMiddleware,
-  allow_origins=allowed_origins,
-  allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"],
-)
-
-# ========== Response Models ==========
-class HealthCheckResponse(BaseModel):
-  """ Resposta do health check endpoint. """
-  status: str
-  version: str
-  database: str
-  nlp_model: str
-  environment: str
-
-# ========== Health Check Endpoint ==========
-@app.get("/api/health", response_model=HealthCheckResponse)
-async def health_check():
-  """
-  Verifica a saúde da aplicação.
-
-  Confirma:
-  - Aplicação rodando
-  - Conexão com o banco de dados
-  - Modelo spaCy carregado
-
-  Response 200: tudo ok
-  Response 500: algum componente crítico falhou
-  """
-
-  try:
-    # Verifica conexão com base de dados
-    db_status = check_db_connection()
-    database_status = "connected" if db_status["connected"] else "disconnected"
-
-    # Verifica se modelo spaCy está carregado
-    nlp_loaded = hasattr(app.state, "nlp_model") and app.state.nlp_model is not None
-    nlp_status = "loaded" if nlp_loaded else "not loaded"
-
-    # Se banco ou spaCy falhou, retorna 500
-    if not db_status["connected"] or not nlp_loaded:
-      raise HTTPException(status_code=500, detail="Health check failed")
-    
-    return HealthCheckResponse(
-      status="ok",
-      version="2.0.0",
-      database=database_status,
-      nlp_model=nlp_status,
-      environment=settings.app_env
+# CORS: origens permitidas a partir da configuração (lista)
+if settings.allowed_origins_list:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins_list,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
-  except Exception as e:
-    logger.error(f"Health check error: {e}")
-    raise HTTPException(status_code=500, detail=str(e))
-  
-# ========== Root Endpoint ==========
-@app.get("/api/")
-async def root():
-  """
-  Endpoint raiz -> confirma que a API está rodando.
-  """
-  return {
-    "message": "Automated Resume Screener API is running!",
-    "docs": "/docs",
-    "openapi": "/openapi.json"
-}
+    logger.info("CORS configured for origins: %s", settings.allowed_origins_list)
 
-# ========== Router Registration ==========
-# Importa e regista routers de endpoints
-# @app.include_router(auth_router, prefix="/api")
-# @app.include_router(processes_router, prefix="/api")
-# @app.include_router(upload_router, prefix="/api")
-# @app.include_router(results_router, prefix="/api")
+
+# ========== Exception handlers ==========
+
+
+async def validation_error_handler(request, exc: ValidationError):
+    """
+    Handler para ValidationError (400 Bad Request).
+
+    Serviços lançam ValidationError para entrada inválida
+    (ex.: título vazio, ficheiro não suportado, tamanho acima do limite).
+
+    Resposta JSON: detail, error_code VALIDATION_ERROR.
+    """
+    logger.warning(
+        "Validation error: %s | request: %s",
+        exc.detail,
+        request.url.path,
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={
+            "detail": exc.detail,
+            "error_code": "VALIDATION_ERROR",
+        },
+    )
+
+
+async def not_found_error_handler(request, exc: NotFoundError):
+    """
+    Handler para NotFoundError (404 Not Found).
+
+    Serviços lançam quando o recurso não existe
+    (ex.: processo ou candidato inexistente).
+
+    Resposta JSON: detail, error_code NOT_FOUND.
+    """
+    logger.warning(
+        "Not found error: %s | request: %s",
+        exc.detail,
+        request.url.path,
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={
+            "detail": exc.detail,
+            "error_code": "NOT_FOUND",
+        },
+    )
+
+
+async def conflict_error_handler(request, exc: ConflictError):
+    """
+    Handler para ConflictError (409 Conflict).
+
+    Serviços lançam quando a operação conflita com o estado atual
+    (ex.: processar enquanto já está a processar, transição de estado inválida).
+
+    Resposta JSON: detail, error_code CONFLICT.
+    """
+    logger.warning(
+        "Conflict error: %s | request: %s",
+        exc.detail,
+        request.url.path,
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={
+            "detail": exc.detail,
+            "error_code": "CONFLICT",
+        },
+    )
+
+
+async def unauthorized_error_handler(request, exc: UnauthorizedError):
+    """
+    Handler para UnauthorizedError (401 Unauthorized).
+    """
+    logger.warning(
+        "Unauthorized error: %s | request: %s",
+        exc.detail,
+        request.url.path,
+    )
+
+
+async def base_api_exception_handler(request, exc: BaseAPIException):
+    """
+    Handler para UnauthorizedError (401 Unauthorized).
+
+    Chamador: Routes lancam quando token é inválido/expirado/revogado
+    Exemplo: JWT não consegue descodificar, token em blacklist, user não existe
+
+    Response:
+    {
+        "detail": "Invalid or expired token",
+        "error_code": "UNAUTHORIZED"
+    }
+    """
+    logger.warning(
+        "Unauthorized error: %s | request: %s",
+        exc.detail,
+        request.url.path,
+    )
+
+    return JSONResponse(
+        status_code=exc.HTTP_401_UNAUTHORIZED,
+        content={
+            "detail": exc.detail,
+            "error_code": "UNAUTHORIZED",
+        },
+    )
+
+
+app.add_exception_handler(ValidationError, validation_error_handler)
+app.add_exception_handler(NotFoundError, not_found_error_handler)
+app.add_exception_handler(ConflictError, conflict_error_handler)
+app.add_exception_handler(UnauthorizedError, unauthorized_error_handler)
+app.add_exception_handler(BaseAPIException, base_api_exception_handler)
+
+
+# ========== Health check ==========
+@app.get("/health", tags=["health"], response_model=HealthResponse)
+async def health_check() -> HealthResponse:
+    """
+    Health check público (sem autenticação).
+
+    Útil para balanceadores de carga, monitorização e pipelines de deploy.
+    """
+    try:
+        db_status = "connected" if check_db_connection() else "disconnected"
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        # Health deve responder mesmo com falha pontual na verificação à BD
+        logger.warning("Health check -> DB error: %s", exc)
+        db_status = "disconnected"
+
+    nlp_status = (
+        "loaded"
+        if hasattr(app.state, "nlp_model") and app.state.nlp_model
+        else "not loaded"
+    )
+
+    payload = HealthResponse(
+        status="ok",
+        version=app.version,
+        database=db_status,
+        nlp_model=nlp_status,
+        environment=settings.app_env,
+    )
+
+    logger.debug("Health check response: %s", payload.model_dump())
+    return payload
+
+
+# ========== Raiz ==========
+@app.get("/", tags=["root"])
+async def root():
+    """Metadados mínimos e ligações à documentação OpenAPI."""
+    return {
+        "message": "Welcome to Automated Resume Screener API",
+        "docs": "/docs",
+        "openapi": "/openapi.json",
+    }
+
+
+# ========== Routers ==========
+app.include_router(auth.router)
+app.include_router(processes.router)
+app.include_router(upload.router)
+
+
+logger.info("Routers registered: processes, upload")
 
 
 if __name__ == "__main__":
-  import uvicorn
-  uvicorn.run(app, host="0.0.0.0", port=8000)
+    import uvicorn
+
+    logger.info("Uvicorn starting on 0.0.0.0:8000")
+    uvicorn.run(
+        "backend.api.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=settings.app_env == "development",
+        log_level="info",
+    )

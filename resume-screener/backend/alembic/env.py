@@ -1,12 +1,20 @@
+"""Configuração do ambiente Alembic para migrações SQLAlchemy."""
+
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool, text
-from alembic import context
 import sys
 from pathlib import Path
+
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+
+# O runtime do Alembic expõe atributos dinâmicos em `context` (config, configure, etc.).
+# pylint: disable=no-member
 
 # Adiciona o diretório raiz ao path para importar backend.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Imports da app só depois de ajustar sys.path (estrutura típica do Alembic).
+# pylint: disable=wrong-import-position
 from backend.api.config import get_settings
 from backend.api.db.models import Base
 
@@ -23,6 +31,7 @@ target_metadata = Base.metadata
 # Lê a DATABASE_URL a partir da configuração da aplicação.
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)
+
 
 def run_migrations_offline() -> None:
     """
@@ -44,6 +53,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online() -> None:
     """
     Corre as migrações no modo 'online'.
@@ -64,11 +74,12 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
-            target_metadata=target_metadata
+            target_metadata=target_metadata,
         )
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()
