@@ -67,22 +67,21 @@ class ProcessCreate(BaseModel):
         min_length=1,
         max_length=255,
         description="Nome descritivo do processo de screening",
+        example="Backend Developer — Porto",
     )
 
     jd_text: str = Field(
         ...,
         min_length=50,
         description="Texto integral da descrição da vaga",
+        example="We are looking for a Python developer with 5+ years experience in backend development, FastAPI, and PostgreSQL.",
     )
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "title": "Backend Developer Porto",
-                "jd_text": (
-                    "Seeking senior Python/FastAPI developer with 3+ years backend "
-                    "experience, NLP expertise, and proven ability to build scalable systems."
-                ),
+                "title": "Backend Developer — Porto",
+                "jd_text": "We are looking for a Python developer with 5+ years experience in backend development, FastAPI, and PostgreSQL.",
             }
         }
     )

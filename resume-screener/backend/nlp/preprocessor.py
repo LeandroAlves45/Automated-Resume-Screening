@@ -1,9 +1,9 @@
-# =============================================================================
-# preprocessor.py - Pré-processador de texto
-# =============================================================================
-# Limpa, normaliza e tokeniza texto bruto de CVs antes da extração de features.
-# Atua apenas como transformação: não interpreta, pontua nem classifica.
-# =============================================================================
+"""
+Pré-processador de texto.
+
+Limpa, normaliza e tokeniza texto bruto de CVs antes da extração de features.
+Atua apenas como transformação: não interpreta, pontua nem classifica.
+"""
 
 import re
 import logging
@@ -43,8 +43,9 @@ class TextPreprocessor:
         tokens = self._tokenise(doc)
 
         logger.debug(
-            f"Precprocessing complete -"
-            f"Clean text: {len(clean_text)} chars, Tokens: {len(tokens)}"
+            "Preprocessing complete — clean text: %d chars, tokens: %d",
+            len(clean_text),
+            len(tokens),
         )
 
         return {

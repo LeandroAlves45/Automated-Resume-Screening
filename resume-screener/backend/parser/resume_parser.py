@@ -1,22 +1,23 @@
-# ==========================================================
-# resume_parser.py - Parser de ficheiros de CV
-# ==========================================================
-# Extrai texto simples de CVs em PDF, DOCX e TXT.
-# A classe oferece uma interface única para formatos diferentes e devolve
-# sempre a mesma estrutura de resultado, incluindo erros de parsing.
-# ==========================================================
+"""
+Parser de ficheiros de CV.
+
+Extrai texto simples de CVs em PDF, DOCX e TXT.
+A classe oferece uma interface única para formatos diferentes e devolve
+sempre a mesma estrutura de resultado, incluindo erros de parsing.
+"""
 
 import logging
+import re
 from pathlib import Path
-from pdfminer.high_level import extract_text as pdf_extract_text # Parser de PDF
-from docx import Document # Parser de DOCX
+from pdfminer.high_level import extract_text as pdf_extract_text  # Parser de PDF
+from docx import Document  # Parser de DOCX
 
 from backend.api.scoring_config import SUPPORTED_EXTENSIONS, TEXT_CONFIG
 
 logger = logging.getLogger(__name__)
 
 
-classbackend.api.scoring_config
+class ResumeParser:
     """
     Lê CVs e devolve texto extraído para o pipeline de NLP.
 
@@ -35,10 +36,10 @@ classbackend.api.scoring_config
         path = Path(file_path)
 
         result = {
-            "name": path.stem, # Nome do ficheiro sem extensão
-            "file": str(path), # Caminho completo como string
-            "text": "", # Texto extraído, ou vazio em caso de erro
-            "error": None # Mensagem de erro, quando existir
+            "name": path.stem,  # Nome do ficheiro sem extensão
+            "file": str(path),  # Caminho completo como string
+            "text": "",  # Texto extraído, ou vazio em caso de erro
+            "error": None,  # Mensagem de erro, quando existir
         }
 
         # Validação rápida antes de tentar abrir o ficheiro.
@@ -55,8 +56,9 @@ classbackend.api.scoring_config
             return result
 
         try:
+            raw_text = ""
             if extension == ".pdf":
-                raw_text = self._parse_pdf (str(path))
+                raw_text = self._parse_pdf(str(path))
             elif extension == ".docx":
                 raw_text = self._parse_docx(str(path))
             elif extension == ".txt":
@@ -69,22 +71,25 @@ classbackend.api.scoring_config
             min_length = TEXT_CONFIG["min_resume_length"]
             if len(result["text"]) < min_length:
                 result["error"] = (
-                    f"Extracted text too short: ({len(result['text'])} chars."
-                    f"Minimum required is {min_length}. File may be image-only or empty. "
+                    f"Extracted text too short ({len(result['text'])} chars). "
+                    f"Minimum required is {min_length}. File may be image-only or empty."
                 )
-                result["text"] = "" # Evita processar texto inválido.
-                logger.warning(f"{path.name}: {result['error']}")
+                result["text"] = ""  # Evita processar texto inválido.
+                logger.warning("%s: %s", path.name, result["error"])
             else:
-                logger.info(f"Successfully parsed: {path.name}"
-                            f"({len(result['text'])} chars.)")
-        except Exception as e:
+                logger.info(
+                    "Successfully parsed: %s (%d chars.)",
+                    path.name,
+                    len(result["text"]),
+                )
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Guarda qualquer erro inesperado de bibliotecas externas.
-            result["error"] = f"Parsing failed:{type(e).__name__}: {e}"
-            logger.error(f"{path.name}: {result['error']}")
+            result["error"] = f"Parsing failed: {type(e).__name__}: {e}"
+            logger.error("%s: %s", path.name, result["error"])
 
         return result
 
-    def parse_folder(self, folder_path:str) -> list[dict]:
+    def parse_folder(self, folder_path: str) -> list[dict]:
         """
         Processa todos os CVs suportados numa pasta.
 
@@ -95,7 +100,7 @@ classbackend.api.scoring_config
         folder = Path(folder_path)
 
         if not folder.is_dir():
-            logger.error(f"Folder not found or is not a directory: {folder_path}")
+            logger.error("Folder not found or is not a directory: %s", folder_path)
             return []
 
         results = []
@@ -107,13 +112,16 @@ classbackend.api.scoring_config
                 continue
 
             if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-                logging.debug(f"Skipping unsupported file: {file_path.name}")
+                logger.debug("Skipping unsupported file: %s", file_path.name)
                 continue
 
             results.append(self.parse(str(file_path)))
 
-        logger.info(f"Folder scan complete: {len(results)} supported file(s) found."
-                    f"In {folder_path}")
+        logger.info(
+            "Folder scan complete: %d supported file(s) found in %s",
+            len(results),
+            folder_path,
+        )
         return results
 
     def _parse_pdf(self, path: str) -> str:
@@ -127,7 +135,7 @@ classbackend.api.scoring_config
         text = pdf_extract_text(path)
         return text if text is not None else ""
 
-    def _parse_docx(self, path:str) -> str:
+    def _parse_docx(self, path: str) -> str:
         """
         Extrai texto de um DOCX usando python-docx.
 
@@ -152,8 +160,10 @@ classbackend.api.scoring_config
 
         except UnicodeDecodeError:
             # Fallback para ficheiros antigos ou criados em ambientes Windows.
-            logger.warning(f"UTF-8 decoding failed for '{path}'."
-                           f"Retrying with Latin-1 encoding.")
+            logger.warning(
+                "UTF-8 decoding failed for '%s'. Retrying with Latin-1 encoding.",
+                path,
+            )
             with open(path, "r", encoding="latin-1") as f:
                 return f.read()
 
@@ -176,7 +186,6 @@ classbackend.api.scoring_config
         result = "\n".join(cleaned_lines)
 
         # Mantém no máximo uma linha em branco entre secções.
-        import re
         result = re.sub(r"\n{3,}", "\n\n", result)
 
         return result.strip()

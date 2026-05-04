@@ -1,9 +1,9 @@
-# =============================================================================
-# extractor.py - Extrator de features de CV
-# =============================================================================
-# Extrai informação quantificável do texto pré-processado: competências,
-# experiência, formação, palavras-chave e entidades nomeadas.
-# =============================================================================
+"""
+Extrator de features de CV.
+
+Extrai informação quantificável do texto pré-processado: competências,
+experiência, formação, palavras-chave e entidades nomeadas.
+"""
 
 import re
 import logging
@@ -35,7 +35,9 @@ class ResumeFeatureExtractor:
         """
 
         if not resume_text or not resume_text.strip():
-            logger.warning("Empty CV text passed to extractor. Returning zero features.")
+            logger.warning(
+                "Empty CV text passed to extractor. Returning zero features."
+            )
             return self._empty_result()
 
         # Corre o spaCy uma vez e reutiliza o Doc nas extrações que precisam dele.
@@ -52,14 +54,15 @@ class ResumeFeatureExtractor:
             "experience_years": experience_years,
             "education_level": education_level,
             "keywords": keywords,
-            "entities": entities
+            "entities": entities,
         }
 
         logger.info(
-            f"Features extracted â€”"
-            f"Skills: {len(matched_skills)}/{len(jd_skills)}, "
-            f"Experience: {experience_years} years, "
-            f"Education: {education_level}"
+            "Features extracted — Skills: %d/%d, Experience: %d years, Education: %s",
+            len(matched_skills),
+            len(jd_skills),
+            experience_years,
+            education_level,
         )
         return result
 
@@ -74,10 +77,10 @@ class ResumeFeatureExtractor:
             if skill.lower() in text_lower:
                 matched.append(skill)
 
-        logger.debug(f"Skills matched: {matched}")
+        logger.debug("Skills matched: %s", matched)
         return matched
 
-    def _extract_experience(self, text:str) -> int:
+    def _extract_experience(self, text: str) -> int:
         """
         Deteta anos de experiência profissional do candidato.
 
@@ -94,8 +97,10 @@ class ResumeFeatureExtractor:
         result = min(result, max_years)
 
         logger.debug(
-            f"Experinece â€” explicit: {years_explicit} years, "
-            f"Date ranges: {years_daterange} years, final: {result} years"
+            "Experience — explicit: %d years, date ranges: %d years, final: %d years",
+            years_explicit,
+            years_daterange,
+            result,
         )
         return result
 
@@ -106,10 +111,10 @@ class ResumeFeatureExtractor:
         text_lower = text.lower()
 
         patterns = [
-            r"(\d+)\+?\s*years?\s*of\s+(?:professional\s+)?experience", # "5 years of experience"
-            r"(\d+)\+?\s*years?\s+experience", # "3 years experience"
-            r"over\s+(\d+)\+?\s*years?", # "over 3 years"
-            r"more\s+than\s+(\d+)\s*years?", # "more than 4 years"
+            r"(\d+)\+?\s*years?\s*of\s+(?:professional\s+)?experience",  # "5 years of experience"
+            r"(\d+)\+?\s*years?\s+experience",  # "3 years experience"
+            r"over\s+(\d+)\+?\s*years?",  # "over 3 years"
+            r"more\s+than\s+(\d+)\s*years?",  # "more than 4 years"
         ]
 
         found_values: list[int] = []
@@ -132,9 +137,7 @@ class ResumeFeatureExtractor:
 
         # Normaliza termos de emprego atual para o ano corrente.
         text_normalised = re.sub(
-            r"\b(present|current|now)\b",
-            str(current_year),
-            text_lower
+            r"\b(present|current|now)\b", str(current_year), text_lower
         )
 
         # Captura intervalos como "2019 - 2023" ou "Jan 2020 - Present".
@@ -147,10 +150,19 @@ class ResumeFeatureExtractor:
             end_year = int(match.group(2))
 
             # Filtra intervalos que não parecem datas de carreira.
-            if (start_year >= 1970 and end_year <= current_year and start_year < end_year):
+            if (
+                start_year >= 1970
+                and end_year <= current_year
+                and start_year < end_year
+            ):
                 duration = end_year - start_year
                 total_years += duration
-                logger.debug(f"Date range: {start_year} - {end_year} => {duration} years")
+                logger.debug(
+                    "Date range: %d - %d => %d years",
+                    start_year,
+                    end_year,
+                    duration,
+                )
 
         return total_years
 
@@ -204,7 +216,7 @@ class ResumeFeatureExtractor:
             "ORG": [],
             "GPE": [],
             "DATE": [],
-            "PERSON": []
+            "PERSON": [],
         }
 
         for ent in doc.ents:
@@ -214,9 +226,11 @@ class ResumeFeatureExtractor:
                     entities[ent.label_].append(entity_text)
 
         logger.debug(
-            f"Entities â€” ORG: {len(entities['ORG'])}, "
-            f"GPE: {len(entities['GPE'])}, "
-            f"DATE: {len(entities['DATE'])},"
+            "Entities — ORG: %d, GPE: %d, DATE: %d, PERSON: %d",
+            len(entities["ORG"]),
+            len(entities["GPE"]),
+            len(entities["DATE"]),
+            len(entities["PERSON"]),
         )
 
         return entities
@@ -230,5 +244,5 @@ class ResumeFeatureExtractor:
             "experience_years": 0,
             "education_level": 0.0,
             "keywords": [],
-            "entities": {"ORG": [], "GPE": [], "DATE": [], "PERSON": []}
+            "entities": {"ORG": [], "GPE": [], "DATE": [], "PERSON": []},
         }

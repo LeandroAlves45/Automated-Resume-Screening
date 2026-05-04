@@ -1,14 +1,14 @@
-# ============================================================================
-# jd_parser.py - Parser de descrições de vaga
-# ============================================================================
-# Extrai critérios estruturados de uma Job Description para o motor de scoring.
-# O modelo spaCy é injetado no construtor para ser carregado apenas uma vez
-# durante a execução do pipeline.
-# =============================================================================
+"""
+Parser de descrições de vaga.
+
+Extrai critérios estruturados de uma Job Description para o motor de scoring.
+O modelo spaCy é injetado no construtor para ser carregado apenas uma vez
+durante a execução do pipeline.
+"""
 
 import re
 import logging
-from typing import Any # Tipos usados em objetos externos como spaCy Doc/Language
+from typing import Any  # Tipos usados em objetos externos como spaCy Doc/Language
 
 from backend.api.scoring_config import EDUCATION_LEVELS, TEXT_CONFIG
 
@@ -18,28 +18,78 @@ logger = logging.getLogger(__name__)
 # Em runtime é convertida para set para pesquisas rápidas.
 _SKILLS_REFERENCE: list[str] = [
     # Linguagens de programação
-    "python", "java", "javascript", "typescript", "c++", "c#", "go", "rust", "kotlin",
-    "backend.api.scoring_configala", "r", "matlab", "perl",
-
+    "python",
+    "java",
+    "javascript",
+    "typescript",
+    "c++",
+    "c#",
+    "go",
+    "rust",
+    "kotlin",
+    "backend.api.scoring_configala",
+    "r",
+    "matlab",
+    "perl",
     # Frameworks e bibliotecas web
-    "django", "flask", "fastapi", "react", "angular", "vue", "node.js", "express",
-    "spring", "rails", "laravel", "asp.net",
-
+    "django",
+    "flask",
+    "fastapi",
+    "react",
+    "angular",
+    "vue",
+    "node.js",
+    "express",
+    "spring",
+    "rails",
+    "laravel",
+    "asp.net",
     # Bases de dados
-    "postgresql", "mysql", "sqlite", "mongodb", "redis", "elasticsearch", "cassandra",
-    "dynamodb", "oracle",
-
+    "postgresql",
+    "mysql",
+    "sqlite",
+    "mongodb",
+    "redis",
+    "elasticsearch",
+    "cassandra",
+    "dynamodb",
+    "oracle",
     # Cloud e infraestrutura
-    "aws", "azure", "gcp", "docker", "kubernetes", "terraform", "ansible", "jenkins",
-    "github actions", "ci/cd",
-
+    "aws",
+    "azure",
+    "gcp",
+    "docker",
+    "kubernetes",
+    "terraform",
+    "ansible",
+    "jenkins",
+    "github actions",
+    "ci/cd",
     # Dados e machine learning
-    "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch", "keras", "xgboost",
-    "spark", "airflow", "dbt", "tableau", "power bi",
-
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "tensorflow",
+    "pytorch",
+    "keras",
+    "xgboost",
+    "spark",
+    "airflow",
+    "dbt",
+    "tableau",
+    "power bi",
     # Ferramentas e práticas
-    "git", "linux", "bash", "rest api", "graphql", "microservices", "agile", "scrum", "kanban",
-    "jira", "figma",
+    "git",
+    "linux",
+    "bash",
+    "rest api",
+    "graphql",
+    "microservices",
+    "agile",
+    "scrum",
+    "kanban",
+    "jira",
+    "figma",
 ]
 
 _SKILLS_SET: set[str] = {skill.lower() for skill in _SKILLS_REFERENCE}
@@ -53,20 +103,22 @@ class JobDescriptionParser:
     explícitos como anos mínimos de experiência.
     """
 
-    def __init__(self, nlp:Any) -> None:
+    def __init__(self, nlp: Any) -> None:
         """
         Inicializa o parser com um modelo spaCy já carregado.
         """
         self._nlp = nlp
         logger.debug("JobDescriptionParser initialised")
 
-    def parse(self, jd_text:str) -> dict:
+    def parse(self, jd_text: str) -> dict:
         """
         Analisa uma descrição de vaga e devolve critérios estruturados.
         """
         # Uma vaga vazia geraria pontuações neutras enganadoras.
         if not jd_text or not jd_text.strip():
-            logger.warning("Job Description text is empty. All criteria will use neutral values.")
+            logger.warning(
+                "Job Description text is empty. All criteria will use neutral values."
+            )
             return self._empty_result(jd_text)
 
         # O pipeline spaCy corre uma única vez e o Doc é reutilizado nas extrações.
@@ -86,15 +138,16 @@ class JobDescriptionParser:
         }
 
         logger.info(
-            f"JD parsed - Skills: {len(skills)}, "
-            f"Min experience: {min_experience} years, "
-            f"Education level: {education_level}, "
-            f"Keywords: {len(keywords)}"
+            "JD parsed — skills: %d, min experience: %d years, education level: %s, keywords: %d",
+            len(skills),
+            min_experience,
+            education_level,
+            len(keywords),
         )
 
         return result
 
-    def _extract_skills(self, text:str) -> list[str]:
+    def _extract_skills(self, text: str) -> list[str]:
         """
         Identifica competências técnicas mencionadas na vaga.
 
@@ -106,17 +159,17 @@ class JobDescriptionParser:
         found_skills = []
         for skill in _SKILLS_REFERENCE:
             # Competências muito curtas exigem fronteiras de palavra para evitar falsos positivos.
-            if len(skill) <2:
+            if len(skill) < 2:
                 if re.search(r"\b" + re.escape(skill) + r"\b", text_lower):
                     found_skills.append(skill)
             else:
                 if skill in text_lower:
                     found_skills.append(skill)
 
-        logger.debug(f"Skills extracted: {found_skills}")
+        logger.debug("Skills extracted: %s", found_skills)
         return found_skills
 
-    def _extract_min_experience(self, text:str) -> int:
+    def _extract_min_experience(self, text: str) -> int:
         """
         Extrai o mínimo de anos de experiência exigido pela vaga.
 
@@ -127,9 +180,9 @@ class JobDescriptionParser:
 
         patterns = [
             r"(\d+)\+?\s*years?\s*of\s*experience",  # "5+ years experience"
-            r"(\d+)\*?\s*years?\s*experience",   # "3 years experience"
-            r"minimum\s+(\d+)\s*years?",         # "minimum 3 years"
-            r"at\s*least\s+(\d+)\s*years?",     # "at least 2 years"
+            r"(\d+)\*?\s*years?\s*experience",  # "3 years experience"
+            r"minimum\s+(\d+)\s*years?",  # "minimum 3 years"
+            r"at\s*least\s+(\d+)\s*years?",  # "at least 2 years"
         ]
 
         found_values: list[int] = []
@@ -149,13 +202,13 @@ class JobDescriptionParser:
 
         return max(found_values)
 
-    def _extract_education_level(self, text:str) -> float:
+    def _extract_education_level(self, text: str) -> float:
         """
         Identifica o nível de formação mais alto pedido na vaga.
         """
         text_lower = text.lower()
 
-        found_levels:list[float] = []
+        found_levels: list[float] = []
 
         for keyword, level_value in EDUCATION_LEVELS.items():
             if keyword in text_lower:
@@ -167,10 +220,10 @@ class JobDescriptionParser:
 
         # Usa o nível mais alto mencionado, não o primeiro encontrado.
         result = max(found_levels)
-        logger.debug(f"Education level extracted: {result}")
+        logger.debug("Education level extracted: %s", result)
         return result
 
-    def _extract_keywords(self, doc:Any) -> list[str]:
+    def _extract_keywords(self, doc: Any) -> list[str]:
         """
         Extrai palavras-chave lematizadas da vaga para comparação TF-IDF.
         """
@@ -184,16 +237,16 @@ class JobDescriptionParser:
 
             lemma = token.lemma_.lower().strip()
 
-            if lemma: # Evita strings vazias após strip().
+            if lemma:  # Evita strings vazias após strip().
                 keywords.append(lemma)
 
         # Remove duplicados preservando a ordem de inserção.
         unique_keywords = list(dict.fromkeys(keywords))
 
-        logger.debug(f"Keywords extracted: {len(unique_keywords)} unique terms.")
+        logger.debug("Keywords extracted: %d unique terms.", len(unique_keywords))
         return unique_keywords
 
-    def _empty_result(self, raw_text:str) -> dict:
+    def _empty_result(self, raw_text: str) -> dict:
         """
         Devolve valores seguros quando a vaga está vazia.
         """

@@ -277,7 +277,7 @@ class User(Base):
     """
     Utilizador do sistema (autenticação JWT).
 
-    Email é unique. Senha é hashed com bcrypt (passlib).
+    Email é unique. Senha é hashed com argon2 (passlib).
     role pode ser 'recruiter' ou 'admin'. is_active controla acesso.
     """
 

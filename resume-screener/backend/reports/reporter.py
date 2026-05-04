@@ -1,9 +1,9 @@
-# =============================================================================
-# reporter.py - Gerador de relatórios
-# =============================================================================
-# Formata e exporta resultados em terminal, CSV, JSON e TXT.
-# Cada ficheiro recebe timestamp para distinguir execuções.
-# =============================================================================
+"""
+Gerador de relatórios.
+
+Formata e exporta resultados em terminal, CSV, JSON e TXT.
+Cada ficheiro recebe timestamp para distinguir execuções.
+"""
 
 import csv
 import json
@@ -24,7 +24,6 @@ class ReportGenerator:
     def __init__(self, output_dir: str) -> None:
         """
         Inicializa o gerador e garante que a pasta de saída existe.
-        backend.api.scoring_config
         """
         self._output_dir = Path(output_dir)
 
@@ -35,7 +34,7 @@ class ReportGenerator:
         self._timestamp_str = self._timestamp.strftime("%Y%m%d_%H%M%S")
         self._timestamp_display = self._timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
-        logger.debug(f"ReportGenerator initialised. Output: {self._output_dir}")
+        logger.debug("ReportGenerator initialised. Output: %s", self._output_dir)
 
     def print_terminal(self, results: list[dict]) -> None:
         """
@@ -129,7 +128,7 @@ class ReportGenerator:
                     missing_str,
                     result.get("experience_years_found", 0),
                 ])
-        logger.info(f"CSV report saved: {filename}")
+        logger.info("CSV report saved: %s", filename)
         return filename
 
     def save_json(self, results: list[dict]) -> Path:
@@ -167,7 +166,7 @@ class ReportGenerator:
         with open(filename, "w", encoding="utf-8") as jsonfile:
             json.dump(output, jsonfile, indent=2, ensure_ascii=False)
 
-        logger.info(f"JSON report saved: {filename}")
+        logger.info("JSON report saved: %s", filename)
         return filename
 
     def save_txt(self, results: list[dict]) -> Path:
@@ -199,10 +198,22 @@ class ReportGenerator:
                 txtfile.write(f"{'â”€' * 70}\n")
 
                 txtfile.write("SCORE BREAKDOWN:\n")
-                txtfile.write(f"  {'Skills Match':<22}: {breakdown.get('skills_match', 0):.1f}% (weights: 40%)\n")
-                txtfile.write(f"  {'Experience':<22}: {breakdown.get('experience_years', 0):.1f}% (weights: 25%)\n")
-                txtfile.write(f"  {'Education':<22}: {breakdown.get('education', 0):.1f}% (weights: 15%)\n")
-                txtfile.write(f"  {'Keyword Density':<22}: {breakdown.get('keyword_density', 0):.1f}% (weights: 20%)\n")
+                txtfile.write(
+                    f"  {'Skills Match':<22}: {breakdown.get('skills_match', 0):.1f}% "
+                    "(weights: 40%)\n"
+                )
+                txtfile.write(
+                    f"  {'Experience':<22}: {breakdown.get('experience_years', 0):.1f}% "
+                    "(weights: 25%)\n"
+                )
+                txtfile.write(
+                    f"  {'Education':<22}: {breakdown.get('education', 0):.1f}% "
+                    "(weights: 15%)\n"
+                )
+                txtfile.write(
+                    f"  {'Keyword Density':<22}: {breakdown.get('keyword_density', 0):.1f}% "
+                    "(weights: 20%)\n"
+                )
 
                 txtfile.write("\n  SKILLS\n")
                 matched = result.get("matched_skills", [])
@@ -210,13 +221,13 @@ class ReportGenerator:
                 txtfile.write(f"  Matched : {', '.join(matched) if matched else 'None'}\n")
                 txtfile.write(f"  Missing : {', '.join(missing) if missing else 'None'}\n")
 
-                txtfile.write(f"\n  EXPERIENCE\n")
+                txtfile.write("\n  EXPERIENCE\n")
                 txtfile.write(
                     f"  Years detected in CV: "
                     f"{result.get('experience_years_found', 0)}\n"
                 )
 
-                txtfile.write(f"\n  RECOMMENDATION\n")
+                txtfile.write("\n  RECOMMENDATION\n")
                 txtfile.write(f"  {self._generate_recommendation(result)}\n")
                 txtfile.write("\n")
 
@@ -225,7 +236,7 @@ class ReportGenerator:
             txtfile.write("END OF REPORT\n")
             txtfile.write("=" * 70 + "\n")
 
-        logger.info(f"TXT report saved: {filename}")
+        logger.info("TXT report saved: %s", filename)
         return filename
 
     def _generate_recommendation(self, result: dict) -> str:
@@ -256,6 +267,6 @@ class ReportGenerator:
                 )
         else:
             return (
-                    f"{name} does not meet the minimum requirements for this role. "
-                    f"(score: {score:.1f}/100). Not recommended for advancement."
-                )
+                f"{name} does not meet the minimum requirements for this role. "
+                f"(score: {score:.1f}/100). Not recommended for advancement."
+            )

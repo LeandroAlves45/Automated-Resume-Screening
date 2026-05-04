@@ -64,7 +64,7 @@ class AuthService:
 
         Fluxo:
         1. Verificar se email já existe
-        2. Hash password com bcrypt
+        2. Hash password com argon2
         3. Criar User no DB
         4. Retornar UserResponse (sem password)
 
@@ -89,7 +89,7 @@ class AuthService:
                 detail=f"Email '{register_data.email}' is already registered",
             )
 
-        # Hash password com bcrypt
+        # Hash password com argon2
         hashed_password = self._hash_password(register_data.password)
 
         # Criar novo User
@@ -116,7 +116,7 @@ class AuthService:
 
         Fluxo:
         1. Encontrar User por email
-        2. Verificar password com bcrypt
+        2. Verificar password com argon2
         3. Criar access_token (exp 1h)
         4. Criar refresh_token (exp 7d) e guardar em DB
         5. Retornar ambos tokens
@@ -364,23 +364,23 @@ class AuthService:
 
     def _hash_password(self, password: str) -> str:
         """
-        Hash password com bcrypt.
+        Hash password com argon2.
 
         Args:
             password: Password em plaintext
 
         Returns:
-            Password hashed com bcrypt
+            Password hashed com argon2
         """
         return pwd_context.hash(password)
 
     def _verify_password(self, password: str, hashed: str) -> bool:
         """
-        Verificar password contra hash com bcrypt.
+        Verificar password contra hash com argon2.
 
         Args:
             password: Password em plaintext
-            hashed_password: Password hashed com bcrypt
+            hashed_password: Password hashed com argon2
 
         Returns:
             True se password é válida, False caso contrário

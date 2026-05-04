@@ -43,7 +43,7 @@ async def register(
 
     Fluxo:
     1. Validar que email não existe (Pydantic + DB check)
-    2. Hash password com bcrypt (COST 12)
+    2. Hash password com argon2
     3. Criar User no DB
     4. Retornar UserResponse com dados do novo utilizador
 
