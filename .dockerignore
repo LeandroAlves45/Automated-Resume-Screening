@@ -1,0 +1,66 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv
+backend/venv/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Project specific
+backend/outputs/
+storage/
+logs/
+*.log
+resumes/*.pdf
+resumes/*.docx
+resumes/*.txt
+!resumes/sample_resume.pdf
+*.db
+*.sqlite3
+
+# Documentation
+*.md
+.qodo/
+
+# Claude
+.claude
+
+# Testing
+alembic/versions/__pycache__/
+
+# Temporary
+*.tmp
+.cache/

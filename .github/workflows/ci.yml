@@ -1,0 +1,120 @@
+name: CI - Lint & Test
+
+on:
+  push:
+    branches: [main, development, "sprint-*"]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff (check style)
+        working-directory: ./backend
+        run: |
+          ruff check api/ \
+            --select=E,W,F,I \
+            --max-line-length=120 \
+            --show-source
+
+      - name: Check import order
+        working-directory: ./backend
+        run: |
+          ruff check api/ --select=I --show-source
+
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: test_ars
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      # Redis é opcional: os testes de rate limiting fazem skip se não existir.
+      # Manter aqui desligado reduz custo/complexidade do CI.
+      # Se quiseres forçar esse coverage em CI, adiciona este service e define
+      # RATE_LIMIT_ENABLED=true + REDIS_URL (ver docs/REDIS_RATE_LIMITING.md).
+      # redis:
+      #   image: redis:7-alpine
+      #   options: >-
+      #     --health-cmd "redis-cli ping"
+      #     --health-interval 10s
+      #     --health-timeout 5s
+      #     --health-retries 5
+      #   ports:
+      #     - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip setuptools
+          pip install -r requirements.txt
+
+      - name: Download spaCy model
+        run: python -m spacy download en_core_web_sm
+
+      - name: Run tests (unit & integration & security)
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_ars
+          JWT_SECRET_KEY: test-secret-key-for-ci-only-very-long-string-minimum-32-chars
+        run: |
+          pytest api/tests/ \
+          -v \
+          --tb=short \
+          --maxfail=3
+
+      - name: Coverage report
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_ars
+          JWT_SECRET_KEY: test-secret-key-for-ci-only-very-long-string-minimum-32-chars
+        run: |
+          pytest api/tests/ \
+          --cov=api/ \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --cov-fail-under=80
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false

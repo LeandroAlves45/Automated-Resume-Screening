@@ -1,0 +1,123 @@
+name: Deploy - Render + Vercel
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::error::Secret RENDER_DEPLOY_HOOK_URL is not set. In Render: Web Service → Manual Deploy → Deploy Hook."
+            exit 1
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Wait for Render build (free tier can be slow)
+        run: sleep 120
+
+      - name: Verify backend health on Render
+        env:
+          RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
+        run: |
+          if [ -z "$RENDER_SERVICE_URL" ]; then
+            echo "::error::Secret RENDER_SERVICE_URL is not set (e.g. https://your-api.onrender.com, no trailing slash)."
+            exit 1
+          fi
+          BASE="${RENDER_SERVICE_URL%/}"
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS "$BASE/health"; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 30s..."
+            sleep 30
+          done
+          exit 1
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy to Vercel (frontend)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        working-directory: ./frontend
+        run: |
+          vercel deploy \
+            --prod \
+            --token=$VERCEL_TOKEN \
+            --confirm
+
+  smoke-test:
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install requests pytest
+
+      - name: Smoke test backend
+        env:
+          RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
+        run: |
+          python -c "
+          import os
+          import requests
+          import sys
+
+          base = os.environ['RENDER_SERVICE_URL'].rstrip('/')
+          url = f'{base}/health'
+          retries = 12
+
+          for attempt in range(retries):
+              try:
+                  response = requests.get(url, timeout=30)
+                  if response.status_code == 200:
+                      print(f'Backend is healthy: {response.json()}')
+                      sys.exit(0)
+              except Exception as e:
+                  print(f'Attempt {attempt + 1}/{retries}: {e}')
+              if attempt < retries - 1:
+                  import time
+                  time.sleep(15)
+
+          print('Backend health check failed')
+          sys.exit(1)
+          "
+
+      - name: Smoke test frontend
+        env:
+          FRONTEND_URL: ${{ secrets.VERCEL_DEPLOYMENT_URL }}
+        run: |
+          # Verificar que frontend está respondendo
+          curl -f https://${{ secrets.VERCEL_DOMAIN }} \
+          -H "User-Agent: Mozilla/5.0" \
+          || exit 1
+
+          echo "Frontend is responding"
